@@ -21,12 +21,26 @@
 
 ## 使用方法
 
-### 提取快应用资源
+### 查看帮助信息
 
-直接运行脚本即可提取所有已缓存的快应用资源：
+直接运行脚本或使用`help`命令可以查看所有可用命令的说明：
 
 ```bash
 python3 extract_quickapp.py
+# 或
+python3 extract_quickapp.py help
+```
+
+### 提取快应用资源
+
+使用`extract`命令提取快应用资源：
+
+```bash
+# 提取所有已缓存的快应用资源
+python3 extract_quickapp.py extract
+
+# 提取指定包名的快应用资源
+python3 extract_quickapp.py extract com.example.package
 ```
 
 提取的资源文件将保存在`extracted_quickapps`目录下，每个快应用都会创建一个带有时间戳的独立目录。

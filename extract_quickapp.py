@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import json
 import subprocess
 import logging
 from datetime import datetime
@@ -66,8 +67,8 @@ class QuickAppExtractor:
         try:
             self.ensure_output_dir()
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            app_output_dir = os.path.join(self.output_dir, f'{app_name}_{timestamp}')
-            os.makedirs(app_output_dir, exist_ok=True)
+            temp_output_dir = os.path.join(self.output_dir, f'{app_name}_{timestamp}')
+            os.makedirs(temp_output_dir, exist_ok=True)
 
             source_path = f'{self.source_dir}/{app_name}'
             temp_path = f'/sdcard/quickapp_temp/{app_name}'
@@ -101,7 +102,7 @@ class QuickAppExtractor:
 
             # 从临时目录提取快应用资源
             result = subprocess.run(
-                ['adb', 'pull', temp_path, app_output_dir],
+                ['adb', 'pull', temp_path, temp_output_dir],
                 capture_output=True,
                 text=True
             )
@@ -114,7 +115,20 @@ class QuickAppExtractor:
             )
 
             if result.returncode == 0:
-                logging.info(f'成功提取快应用: {app_name} -> {app_output_dir}')
+                # 读取manifest.json获取应用名称
+                manifest_path = os.path.join(temp_output_dir, app_name, 'manifest.json')
+                try:
+                    with open(manifest_path, 'r', encoding='utf-8') as f:
+                        manifest_data = json.loads(f.read())
+                        app_display_name = manifest_data.get('name', app_name)
+                        # 使用应用名称重命名输出目录
+                        app_output_dir = os.path.join(self.output_dir, f'{app_display_name}_{timestamp}')
+                        os.rename(temp_output_dir, app_output_dir)
+                        logging.info(f'成功提取快应用: {app_display_name} ({app_name}) -> {app_output_dir}')
+                except Exception as e:
+                    logging.warning(f'读取manifest.json失败: {str(e)}, 使用原始包名')
+                    app_output_dir = temp_output_dir
+                    logging.info(f'成功提取快应用: {app_name} -> {app_output_dir}')
                 return True
             else:
                 logging.error(f'提取快应用失败 {app_name}: {result.stderr}')
@@ -188,18 +202,35 @@ class QuickAppExtractor:
 
         logging.info(f'清除完成: 成功 {success_count}/{len(apps)}')
 
+def show_help():
+    """显示帮助信息"""
+    print('快应用资源提取工具')
+    print('\n可用命令：')
+    print('  extract [包名]  提取快应用资源，不指定包名则提取所有')
+    print('  list     查看已缓存的快应用列表')
+    print('  clear    清理快应用缓存')
+    print('  help     显示此帮助信息')
+
 def main():
     extractor = QuickAppExtractor()
     
     if len(sys.argv) > 1:
-        if sys.argv[1] == 'list':
+        if sys.argv[1] == 'extract':
+            if len(sys.argv) > 2:
+                extractor.extract_quickapp(sys.argv[2])
+            else:
+                extractor.extract_all()
+        elif sys.argv[1] == 'list':
             extractor.list_packages()
         elif sys.argv[1] == 'clear':
             extractor.clear_cache()
+        elif sys.argv[1] == 'help':
+            show_help()
         else:
-            print('无效的命令，可用命令：list, clear')
+            print('无效的命令')
+            show_help()
     else:
-        extractor.extract_all()
+        show_help()
 
 if __name__ == '__main__':
     main()
