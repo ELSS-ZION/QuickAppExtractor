@@ -159,9 +159,23 @@ class QuickAppExtractor:
         """列出所有已缓存的快应用包名"""
         apps = self.list_quickapps()
         if apps:
-            print('\n已缓存的快应用包名:')
+            print('\n已缓存的快应用:')
             for app in apps:
-                print(f'- {app}')
+                # 尝试读取manifest.json获取应用名称
+                try:
+                    result = subprocess.run(
+                        ['adb', 'shell', 'su -c', f'cat {self.source_dir}/{app}/manifest.json'],
+                        capture_output=True,
+                        text=True
+                    )
+                    if result.returncode == 0:
+                        manifest_data = json.loads(result.stdout)
+                        app_display_name = manifest_data.get('name', app)
+                        print(f'- {app_display_name} ({app})')
+                    else:
+                        print(f'- {app}')
+                except Exception as e:
+                    print(f'- {app}')
         else:
             print('未找到已缓存的快应用')
 
