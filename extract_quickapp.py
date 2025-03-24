@@ -16,7 +16,6 @@ class QuickAppExtractor:
     def __init__(self):
         self.source_dir = '/data/data/com.miui.hybrid/app_resource'
         self.output_dir = 'extracted_quickapps'
-        self.ensure_output_dir()
 
     def ensure_output_dir(self):
         """确保输出目录存在"""
@@ -65,6 +64,7 @@ class QuickAppExtractor:
     def extract_quickapp(self, app_name):
         """提取单个快应用的资源"""
         try:
+            self.ensure_output_dir()
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             app_output_dir = os.path.join(self.output_dir, f'{app_name}_{timestamp}')
             os.makedirs(app_output_dir, exist_ok=True)
@@ -131,6 +131,8 @@ class QuickAppExtractor:
         apps = self.list_quickapps()
         if not apps:
             return
+            
+        self.ensure_output_dir()
 
         success_count = 0
         for app in apps:
@@ -139,9 +141,65 @@ class QuickAppExtractor:
 
         logging.info(f'提取完成: 成功 {success_count}/{len(apps)}')
 
+    def list_packages(self):
+        """列出所有已缓存的快应用包名"""
+        apps = self.list_quickapps()
+        if apps:
+            print('\n已缓存的快应用包名:')
+            for app in apps:
+                print(f'- {app}')
+        else:
+            print('未找到已缓存的快应用')
+
+    def clear_cache(self):
+        """清除所有快应用缓存"""
+        if not self.check_adb_device():
+            return
+
+        apps = self.list_quickapps()
+        if not apps:
+            print('没有找到需要清理的快应用缓存')
+            return
+
+        print(f'\n即将清除以下快应用的缓存:')
+        for app in apps:
+            print(f'- {app}')
+
+        confirm = input('\n确认要清除这些快应用的缓存吗？[y/N] ')
+        if confirm.lower() != 'y':
+            print('已取消清除操作')
+            return
+
+        success_count = 0
+        for app in apps:
+            try:
+                result = subprocess.run(
+                    ['adb', 'shell', 'su -c', f'rm -rf {self.source_dir}/{app}'],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0:
+                    success_count += 1
+                    logging.info(f'成功清除快应用缓存: {app}')
+                else:
+                    logging.error(f'清除快应用缓存失败 {app}: {result.stderr}')
+            except Exception as e:
+                logging.error(f'清除快应用缓存 {app} 时出错: {str(e)}')
+
+        logging.info(f'清除完成: 成功 {success_count}/{len(apps)}')
+
 def main():
     extractor = QuickAppExtractor()
-    extractor.extract_all()
+    
+    if len(sys.argv) > 1:
+        if sys.argv[1] == 'list':
+            extractor.list_packages()
+        elif sys.argv[1] == 'clear':
+            extractor.clear_cache()
+        else:
+            print('无效的命令，可用命令：list, clear')
+    else:
+        extractor.extract_all()
 
 if __name__ == '__main__':
     main()
