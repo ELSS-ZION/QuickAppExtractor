@@ -63,6 +63,25 @@ class QuickAppExtractor:
             logging.error(f'列出快应用时出错: {str(e)}')
             return []
 
+    def get_app_name_from_manifest(self, app_name):
+        """从manifest.json获取应用名称"""
+        try:
+            # 从设备读取
+            result = subprocess.run(
+                ['adb', 'shell', 'su -c', f'cat {self.source_dir}/{app_name}/manifest.json'],
+                capture_output=True,
+                text=True,
+                encoding='utf-8'
+            )
+            if result.returncode != 0:
+                return app_name
+            manifest_data = json.loads(result.stdout)
+            
+            return manifest_data.get('name', app_name)
+        except Exception as e:
+            logging.warning(f'读取manifest.json失败: {str(e)}, 使用原始包名')
+            return app_name
+
     def extract_quickapp(self, app_name):
         """提取单个快应用的资源"""
         try:
@@ -122,19 +141,11 @@ class QuickAppExtractor:
 
             if result.returncode == 0:
                 # 读取manifest.json获取应用名称
-                manifest_path = os.path.join(temp_output_dir, app_name, 'manifest.json')
-                try:
-                    with open(manifest_path, 'r', encoding='utf-8') as f:
-                        manifest_data = json.loads(f.read())
-                        app_display_name = manifest_data.get('name', app_name)
-                        # 使用应用名称重命名输出目录
-                        app_output_dir = os.path.join(self.output_dir, f'{app_display_name}_{timestamp}')
-                        os.rename(temp_output_dir, app_output_dir)
-                        logging.info(f'成功提取快应用: {app_display_name} ({app_name}) -> {app_output_dir}')
-                except Exception as e:
-                    logging.warning(f'读取manifest.json失败: {str(e)}, 使用原始包名')
-                    app_output_dir = temp_output_dir
-                    logging.info(f'成功提取快应用: {app_name} -> {app_output_dir}')
+                app_display_name = self.get_app_name_from_manifest(app_name)
+                # 使用应用名称重命名输出目录
+                app_output_dir = os.path.join(self.output_dir, f'{app_display_name}_{timestamp}')
+                os.rename(temp_output_dir, app_output_dir)
+                logging.info(f'成功提取快应用: {app_display_name} ({app_name}) -> {app_output_dir}')
                 return True
             else:
                 logging.error(f'提取快应用失败 {app_name}: {result.stderr}')
@@ -167,22 +178,8 @@ class QuickAppExtractor:
         if apps:
             print('\n已缓存的快应用:')
             for app in apps:
-                # 尝试读取manifest.json获取应用名称
-                try:
-                    result = subprocess.run(
-                        ['adb', 'shell', 'su -c', f'cat {self.source_dir}/{app}/manifest.json'],
-                        capture_output=True,
-                        text=True,
-                        encoding='utf-8'
-                    )
-                    if result.returncode == 0:
-                        manifest_data = json.loads(result.stdout)
-                        app_display_name = manifest_data.get('name', app)
-                        print(f'- {app_display_name} ({app})')
-                    else:
-                        print(f'- {app}')
-                except Exception as e:
-                    print(f'- {app}')
+                app_display_name = self.get_app_name_from_manifest(app)
+                print(f'- {app_display_name} ({app})')
         else:
             print('未找到已缓存的快应用')
 
