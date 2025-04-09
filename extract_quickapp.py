@@ -27,7 +27,7 @@ class QuickAppExtractor:
     def check_adb_device(self):
         """检查ADB设备连接状态"""
         try:
-            result = subprocess.run(['adb', 'devices'], capture_output=True, text=True)
+            result = subprocess.run(['adb', 'devices'], capture_output=True, text=True, encoding='utf-8')
             devices = [line.split()[0] for line in result.stdout.splitlines()[1:] if line.strip()]
             
             if not devices:
@@ -49,7 +49,8 @@ class QuickAppExtractor:
             result = subprocess.run(
                 ['adb', 'shell', 'su -c', f'ls {self.source_dir}'],
                 capture_output=True,
-                text=True
+                text=True,
+                encoding='utf-8'
             )
             if result.returncode != 0:
                 logging.error(f'列出快应用目录失败: {result.stderr}')
@@ -77,14 +78,16 @@ class QuickAppExtractor:
             subprocess.run(
                 ['adb', 'shell', 'su -c', f'mkdir -p /sdcard/quickapp_temp'],
                 capture_output=True,
-                text=True
+                text=True,
+                encoding='utf-8'
             )
             
             # 修改目录权限并复制到临时目录
             copy_result = subprocess.run(
                 ['adb', 'shell', 'su -c', f'cp -r {source_path} {temp_path}'],
                 capture_output=True,
-                text=True
+                text=True,
+                encoding='utf-8'
             )
             if copy_result.returncode != 0:
                 logging.error(f'复制到临时目录失败 {app_name}: {copy_result.stderr}')
@@ -94,7 +97,8 @@ class QuickAppExtractor:
             chmod_result = subprocess.run(
                 ['adb', 'shell', 'su -c', f'chmod -R 777 {temp_path}'],
                 capture_output=True,
-                text=True
+                text=True,
+                encoding='utf-8'
             )
             if chmod_result.returncode != 0:
                 logging.error(f'修改临时目录权限失败 {app_name}: {chmod_result.stderr}')
@@ -104,14 +108,16 @@ class QuickAppExtractor:
             result = subprocess.run(
                 ['adb', 'pull', temp_path, temp_output_dir],
                 capture_output=True,
-                text=True
+                text=True,
+                encoding='utf-8'
             )
 
             # 清理临时目录
             subprocess.run(
                 ['adb', 'shell', 'su -c', f'rm -rf {temp_path}'],
                 capture_output=True,
-                text=True
+                text=True,
+                encoding='utf-8'
             )
 
             if result.returncode == 0:
@@ -166,7 +172,8 @@ class QuickAppExtractor:
                     result = subprocess.run(
                         ['adb', 'shell', 'su -c', f'cat {self.source_dir}/{app}/manifest.json'],
                         capture_output=True,
-                        text=True
+                        text=True,
+                        encoding='utf-8'
                     )
                     if result.returncode == 0:
                         manifest_data = json.loads(result.stdout)
@@ -204,7 +211,8 @@ class QuickAppExtractor:
                 result = subprocess.run(
                     ['adb', 'shell', 'su -c', f'rm -rf {self.source_dir}/{app}'],
                     capture_output=True,
-                    text=True
+                    text=True,
+                    encoding='utf-8'
                 )
                 if result.returncode == 0:
                     success_count += 1
